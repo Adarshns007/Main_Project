@@ -4,10 +4,14 @@
 
 document.addEventListener('DOMContentLoaded', () => {
     checkAuthAndRedirect(true); 
+    
+    loadFarmLocations();
+    loadAllTreatments();
     setupEventListeners();
 });
 
 let regionalChartInstance = null;
+let savedFarms = []; // New global variable to store farm data
 
 // --- CRITICAL: Client-Side Severity Index (Kept for table/tooltip reference) ---
 const DISEASE_SEVERITY_INDEX = {
@@ -32,6 +36,117 @@ const DISEASE_COLOR_MAP = {
     'Sooty Mould': '#6c757d',
 };
 
+// --- NEW FUNCTIONS ---
+
+/**
+ * Loads the user's geo-tagged farm locations and populates the dropdown.
+ */
+async function loadFarmLocations() {
+    const farmSelect = document.getElementById('farmSelect');
+    
+    try {
+        // Assuming UserAPI.getFarms is defined in api.js
+        const farms = await UserAPI.getFarms(); 
+        
+        // Filter to only include farms that have GPS coordinates
+        savedFarms = farms.filter(f => f.latitude && f.longitude);
+        
+        if (savedFarms.length === 0) {
+            farmSelect.innerHTML = '<option value="">-- No Geo-tagged Farms Found --</option>';
+            farmSelect.disabled = true;
+            return;
+        }
+
+        savedFarms.forEach(farm => {
+            const option = document.createElement('option');
+            // We use a combined value to make lookup easy
+            option.value = `${farm.latitude},${farm.longitude}`; 
+            option.textContent = `${farm.farm_name} (${farm.latitude}, ${farm.longitude})`;
+            farmSelect.appendChild(option);
+        });
+
+        // Add change listener to the new dropdown
+        farmSelect.addEventListener('change', handleFarmSelection);
+
+    } catch (error) {
+        farmSelect.innerHTML = '<option value="">-- Error Loading Farms --</option>';
+        farmSelect.disabled = true;
+        console.error("Failed to load user farms:", error);
+    }
+}
+
+/**
+ * Handles the selection of a farm from the dropdown, populating Latitude/Longitude fields.
+ */
+function handleFarmSelection(e) {
+    const value = e.target.value;
+    const latInput = document.getElementById('reportLatitude');
+    const lonInput = document.getElementById('reportLongitude');
+    
+    // Clear manual inputs first
+    latInput.value = '';
+    lonInput.value = '';
+    
+    if (value) {
+        // Split the combined lat,lon value
+        const [lat, lon] = value.split(',');
+        latInput.value = lat;
+        lonInput.value = lon;
+    }
+}
+
+/**
+ * Loads all disease information for the static reference table.
+ */
+async function loadAllTreatments() {
+    const container = document.getElementById('allDiseasesTreatment');
+    if (!container) return;
+    
+    container.innerHTML = '<p>Loading static disease guide...</p>';
+
+    try {
+        const diseases = await apiCall('/api/user/diseases', 'GET');
+
+        let tableHTML = `
+            <h3 style="color: var(--primary-color); margin-top: 15px; margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 5px;">
+                Reference: Complete Disease Treatment Guide
+            </h3>
+            <table class="data-table" style="width: 100%; font-size: 0.9em;">
+                <thead>
+                    <tr>
+                        <th>Disease</th>
+                        <th>Organic Treatment</th>
+                        <th>Chemical Treatment</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+
+        diseases.forEach(disease => {
+            if (disease.name === 'Healthy') return;
+            
+            tableHTML += `
+                <tr>
+                    <td style="font-weight: bold;">${disease.name}</td>
+                    <td>${disease.organic_treatment || 'No specific organic treatment recorded.'}</td>
+                    <td>${disease.chemical_treatment || 'No specific chemical treatment recorded.'}</td>
+                </tr>
+            `;
+        });
+
+        tableHTML += `
+                </tbody>
+            </table>
+        `;
+        
+        container.innerHTML = tableHTML;
+        
+    } catch (error) {
+        container.innerHTML = '<p style="color:red;">Failed to load static treatment guide.</p>';
+    }
+}
+// --- END OF NEW FUNCTIONS ---
+
 
 function setupEventListeners() {
     const detectButton = document.getElementById('autoDetectLocation');
@@ -48,11 +163,16 @@ function setupEventListeners() {
         detectButton.disabled = true;
         detectButton.textContent = 'Detecting...';
         displayMessage("Please allow browser location access.", false);
+        
+        // Clear farm selection if detecting a new location
+        document.getElementById('farmSelect').value = ''; 
 
         navigator.geolocation.getCurrentPosition(
             (position) => {
-                latInput.value = position.coords.latitude.toFixed(8);
-                lonInput.value = position.coords.longitude.toFixed(8);
+                const lat = position.coords.latitude.toFixed(8);
+                const lon = position.coords.longitude.toFixed(8);
+                latInput.value = lat;
+                lonInput.value = lon;
                 displayMessage("Location detected successfully!", false);
             },
             (error) => {
@@ -87,12 +207,12 @@ function setupEventListeners() {
 }
 
 /**
- * Fetches regional disease counts and prepares data for percentage calculation.
+ * Fetches regional disease counts (now unique affected trees) and renders the report.
  */
 async function loadRegionalStatistics(latitude, longitude) {
     const chartMessage = document.getElementById('chartMessage');
     const summaryContainer = document.getElementById('regionalDataSummary');
-    const treatmentContainer = document.getElementById('treatmentSummary'); // NEW CONTAINER
+    const treatmentContainer = document.getElementById('treatmentSummary'); 
 
     chartMessage.textContent = 'Fetching data from surrounding 5km...';
     
@@ -104,18 +224,18 @@ async function loadRegionalStatistics(latitude, longitude) {
         const endpoint = `/api/user/regional-stats?latitude=${latitude}&longitude=${longitude}`;
         const response = await apiCall(endpoint, 'GET'); 
         
-        const regionalData = response.regional_data || {};
-        const topTreatments = response.top_treatments || []; // NEW FIELD
+        const regionalData = response.regional_data || {}; // Now holds unique tree counts
+        const topTreatments = response.top_treatments || [];
         
         if (Object.keys(regionalData).length === 0) {
-            chartMessage.textContent = response.message || 'No active disease outbreaks found within 5km.';
+            chartMessage.textContent = response.message || 'No active diseased trees found within 5km.'; // Text update
             if (regionalChartInstance) regionalChartInstance.destroy();
             return;
         }
         
         renderRegionalChart(regionalData);
         renderSummaryTable(regionalData);
-        renderTopTreatments(topTreatments); // NEW FUNCTION CALL
+        renderTopTreatments(topTreatments); 
         
         displayMessage("Regional disease risk assessment loaded successfully.", false);
 
@@ -127,20 +247,16 @@ async function loadRegionalStatistics(latitude, longitude) {
 }
 
 /**
- * Renders the regional disease distribution Doughnut Chart (Option 1).
+ * Renders the regional disease distribution Doughnut Chart.
  */
 function renderRegionalChart(distributionData) {
     const canvas = document.getElementById('regionalDiseaseChartCanvas');
-    const chartMessage = document.getElementById('chartMessage');
-    
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     
-    chartMessage.textContent = ''; 
-
     const labels = Object.keys(distributionData);
     const rawCounts = Object.values(distributionData);
-    const totalScans = rawCounts.reduce((sum, count) => sum + count, 0);
+    const totalTrees = rawCounts.reduce((sum, count) => sum + count, 0); // Calculation uses tree count
     const colors = labels.map(label => DISEASE_COLOR_MAP[label] || '#cccccc');
 
     if (regionalChartInstance) {
@@ -152,7 +268,7 @@ function renderRegionalChart(distributionData) {
         data: {
             labels: labels,
             datasets: [{
-                label: 'Diseased Scans Count',
+                label: 'Affected Trees Count', // Label Update
                 data: rawCounts,
                 backgroundColor: colors,
                 borderWidth: 1
@@ -167,7 +283,7 @@ function renderRegionalChart(distributionData) {
                 },
                 title: {
                     display: true,
-                    text: `Regional Disease Distribution (Total Scans: ${totalScans})`
+                    text: `Regional Disease Distribution (Total Affected Trees: ${totalTrees})` // Title Update
                 },
                 tooltip: {
                     callbacks: {
@@ -177,7 +293,7 @@ function renderRegionalChart(distributionData) {
                             const total = context.dataset.data.reduce((a, b) => a + b, 0);
                             const percentage = total > 0 ? ((rawCount / total) * 100).toFixed(1) + '%' : '0%';
                             
-                            return `${label}: ${percentage} (${rawCount} scan${rawCount !== 1 ? 's' : ''})`;
+                            return `${label}: ${percentage} (${rawCount} affected tree${rawCount !== 1 ? 's' : ''})`; // Tooltip Update
                         }
                     }
                 }
@@ -194,16 +310,15 @@ function renderSummaryTable(distributionData) {
     if (!summaryContainer) return;
     
     const rawCounts = Object.values(distributionData);
-    const totalScans = rawCounts.reduce((sum, count) => sum + count, 0);
+    const totalTrees = rawCounts.reduce((sum, count) => sum + count, 0); // Calculation uses tree count
 
     let tableHTML = `
-        <h4 style="margin-top: 30px; color: var(--primary-color);">Detailed Disease Breakdown</h4>
+        <h4 style="margin-top: 30px; color: var(--primary-color);">Detailed Disease Breakdown (Affected Trees)</h4>
         <table class="data-table" style="width: 100%; margin-top: 15px;">
             <thead>
                 <tr>
                     <th>Disease</th>
-                    <th>Count</th>
-                    <th>Percentage</th>
+                    <th>Affected Trees</th> <th>Percentage</th>
                     <th>Severity Index</th>
                 </tr>
             </thead>
@@ -214,7 +329,7 @@ function renderSummaryTable(distributionData) {
         .sort(([, countA], [, countB]) => countB - countA);
 
     sortedEntries.forEach(([disease, count]) => {
-        const percentage = totalScans > 0 ? ((count / totalScans) * 100).toFixed(1) + '%' : '0%';
+        const percentage = totalTrees > 0 ? ((count / totalTrees) * 100).toFixed(1) + '%' : '0%';
         const severity = DISEASE_SEVERITY_INDEX[disease] || 'N/A';
         const severityColor = severity >= 3 ? 'red' : severity >= 2 ? 'orange' : 'green';
         
@@ -231,7 +346,7 @@ function renderSummaryTable(distributionData) {
     tableHTML += `
             <tr style="font-weight: bold; background-color: #f0f0f0;">
                 <td>TOTAL</td>
-                <td>${totalScans}</td>
+                <td>${totalTrees}</td>
                 <td>100.0%</td>
                 <td>-</td>
             </tr>
@@ -243,7 +358,7 @@ function renderSummaryTable(distributionData) {
 }
 
 /**
- * NEW FUNCTION: Renders the treatment solutions for the top 2 diseases.
+ * Renders the treatment solutions for the top 2 diseases.
  */
 function renderTopTreatments(topTreatments) {
     const treatmentContainer = document.getElementById('treatmentSummary');
@@ -264,12 +379,11 @@ function renderTopTreatments(topTreatments) {
     topTreatments.forEach((threat, index) => {
         const count = threat.count;
         const total = topTreatments.reduce((sum, t) => sum + t.count, 0);
-        const percentage = total > 0 ? ((count / total) * 100).toFixed(1) : 'N/A';
         
         treatmentsHTML += `
             <div style="background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; border-left: 5px solid ${DISEASE_COLOR_MAP[threat.name] || '#333'};">
                 <h3 style="color: var(--primary-color); margin-top: 0;">
-                    ${index + 1}. ${threat.name} <span style="font-size: 0.9em; color: #777;">(${count} scan${count !== 1 ? 's' : ''} reported)</span>
+                    ${index + 1}. ${threat.name} <span style="font-size: 0.9em; color: #777;">(${count} affected tree${count !== 1 ? 's' : ''} reported)</span>
                 </h3>
                 
                 <h4 style="font-size: 1.1em; color: green; margin-top: 15px;">Organic Treatment:</h4>

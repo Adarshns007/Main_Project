@@ -90,9 +90,20 @@ def get_all_users_route(current_user_id):
 @admin_bp.route('/scans', methods=['GET'])
 @admin_required
 def get_all_scans_route(current_user_id):
-    """FIX: Retrieves a list of all analyzed images across all users for admin view."""
+    """
+    Retrieves a list of all analyzed images across all users for admin view, 
+    with optional filtering by username and date range.
+    """
+    
+    # --- START OF MODIFICATION: Extract Filter Parameters ---
+    username = request.args.get('username', None)
+    start_date = request.args.get('start_date', None)
+    end_date = request.args.get('end_date', None)
+    # --- END OF MODIFICATION ---
+
     try:
-        scans = image_model.get_all_system_scans()
+        # Pass filters to the model
+        scans = image_model.get_all_system_scans(username, start_date, end_date)
         
         # FIX: Handle case where DB returns None on failure
         if scans is None:

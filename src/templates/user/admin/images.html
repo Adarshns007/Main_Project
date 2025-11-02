@@ -68,6 +68,23 @@
         .status-badge.default { background-color: #d9534f; }
         .status-badge { padding: 4px 8px; border-radius: 4px; color: white; font-size: 0.85em; }
         .table-responsive { overflow-x: auto; }
+        /* NEW: Style for the filter row */
+        .filter-row {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+            align-items: flex-end;
+        }
+        .filter-row input[type="text"], .filter-row input[type="date"] {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .filter-row label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
@@ -91,6 +108,21 @@
             
             <div id="message-container" class="message-container" style="margin-bottom: 20px;"></div>
 
+            <div class="filter-row">
+                <div class="form-group">
+                    <label for="usernameFilter">Username</label>
+                    <input type="text" id="usernameFilter" placeholder="e.g., adarshns007">
+                </div>
+                <div class="form-group">
+                    <label for="startDateFilter">From Date</label>
+                    <input type="date" id="startDateFilter">
+                </div>
+                <div class="form-group">
+                    <label for="endDateFilter">To Date</label>
+                    <input type="date" id="endDateFilter">
+                </div>
+                <button class="btn primary" id="applyFilterButton" onclick="loadAllScans()">Apply Filter</button>
+            </div>
             <div class="table-responsive">
                 <table id="scansTable" class="data-table">
                     <thead>
@@ -123,6 +155,7 @@
             checkAuthAndRedirect(true); 
             
             if (isLoggedIn() && decodeJwt(getAuthToken()).role === 'admin') {
+                // Initial load without filters
                 loadAllScans();
             } else {
                 alert('Access Denied. Redirecting to user dashboard.');
@@ -134,10 +167,26 @@
         const scansTableBody = document.getElementById('scansTableBody');
 
         async function loadAllScans() {
-            scansTableBody.innerHTML = '<tr><td colspan="9">Fetching all scans from server...</td></tr>';
+            // Read filter values from the inputs
+            const username = document.getElementById('usernameFilter').value.trim();
+            const start_date = document.getElementById('startDateFilter').value;
+            const end_date = document.getElementById('endDateFilter').value;
+            
+            // Build query parameters string
+            const params = new URLSearchParams();
+            if (username) params.append('username', username);
+            if (start_date) params.append('start_date', start_date);
+            if (end_date) params.append('end_date', end_date);
+            
+            let endpoint = '/api/admin/scans';
+            if (params.toString()) {
+                endpoint += `?${params.toString()}`;
+            }
+
+            scansTableBody.innerHTML = '<tr><td colspan="9">Fetching filtered scans from server...</td></tr>';
             try {
-                // GET /api/admin/scans
-                const scans = await adminApiCall('/api/admin/scans', 'GET');
+                // GET /api/admin/scans?username=...&start_date=...
+                const scans = await adminApiCall(endpoint, 'GET');
                 renderScans(scans);
             } catch (error) {
                 scansTableBody.innerHTML = '<tr><td colspan="9" style="color:red;">Failed to load scans: ' + (error.message || 'Server error') + '</td></tr>';
@@ -147,7 +196,7 @@
         function renderScans(scans) {
             scansTableBody.innerHTML = '';
             if (scans.length === 0) {
-                scansTableBody.innerHTML = '<tr><td colspan="9">No scan records found in the system.</td></tr>';
+                scansTableBody.innerHTML = '<tr><td colspan="9">No scan records found matching the criteria.</td></tr>';
                 return;
             }
 

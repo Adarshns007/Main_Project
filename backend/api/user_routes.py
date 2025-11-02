@@ -1,4 +1,5 @@
-# adarshns007/my-project/my-project-b969c78bfb99d884a2432d5eaa1211441070eb9e/backend/api/user_routes.py
+# backend/api/user_routes.py
+
 from flask import Blueprint, request, jsonify, current_app, url_for
 from backend.models.farm_model import FarmModel
 from backend.models.tree_model import TreeModel
@@ -328,9 +329,8 @@ def get_outbreak_alert_route(current_user_id):
 @token_required
 def get_regional_statistics_route(current_user_id):
     """
-    Retrieves anonymous, aggregated disease statistics within a 5km radius 
-    of the location provided by query parameters, and includes treatment details 
-    for the top 2 diseases.
+    Retrieves anonymous, aggregated disease statistics calculated by the 
+    number of unique affected trees within a 5km radius of the location.
     """
     try:
         latitude = request.args.get('latitude')
@@ -342,12 +342,15 @@ def get_regional_statistics_route(current_user_id):
         target_lat = float(latitude)
         target_lon = float(longitude)
         
-        # 1. Get aggregated data
-        regional_data = statistics_model.get_regional_disease_data(target_lat, target_lon, max_distance_km=5.0)
+        # 1. Get aggregated data (now counts unique trees)
+        regional_data_full = statistics_model.get_regional_disease_data(target_lat, target_lon, max_distance_km=5.0)
         
+        regional_data = regional_data_full['regional_tree_counts'] # KEY CHANGE: Now counts unique trees
+
         top_treatments = []
         if regional_data:
             # 2. Sort the data by count (descending)
+            # This sorting is now based on the number of unique affected trees
             sorted_diseases = sorted(regional_data.items(), key=lambda item: item[1], reverse=True)
             
             # 3. Get the top 2 diseases
@@ -362,11 +365,11 @@ def get_regional_statistics_route(current_user_id):
                     })
 
         if not regional_data:
-            return jsonify({"regional_data": {}, "top_treatments": [], "message": "No diseased scans found in the 5km radius."}), 200
+            return jsonify({"regional_data": {}, "top_treatments": [], "message": "No diseased trees found in the 5km radius."}), 200
 
         return jsonify({
-            "regional_data": regional_data, 
-            "top_treatments": top_treatments, # <-- NEW FIELD
+            "regional_data": regional_data, # This is now tree counts
+            "top_treatments": top_treatments,
             "message": "Regional data retrieved successfully."
         }), 200
         
@@ -376,6 +379,23 @@ def get_regional_statistics_route(current_user_id):
         current_app.logger.error(f"Regional Statistics error for user {current_user_id}: {e}")
         return jsonify({"message": "Could not retrieve regional statistics."}), 500
         
+# ==============================================================================
+# --- Disease Information Route (NEW) ---
+# ==============================================================================
+@user_bp.route('/diseases', methods=['GET'])
+@token_required
+def get_all_diseases_for_user_route(current_user_id):
+    """
+    Retrieves all disease records for the user to use as a static reference guide.
+    """
+    try:
+        diseases = disease_model.get_all_diseases()
+        return jsonify(diseases), 200
+    except Exception as e:
+        current_app.logger.error(f"User disease list error: {e}")
+        return jsonify({"message": "Failed to retrieve disease information list"}), 500
+
+
 # ==============================================================================
 # --- Feedback Routes & Statistics Routes (omitted for brevity) ---
 # ...

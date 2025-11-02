@@ -103,11 +103,12 @@ class ImageModel:
         params = (tree_id,)
         return self.db.execute_query(query, params)
         
-    def get_all_system_scans(self):
+    def get_all_system_scans(self, username=None, start_date=None, end_date=None):
         """
-        Retrieves a list of all analyzed images for the Admin gallery view.
+        Retrieves a list of all analyzed images for the Admin gallery view, 
+        with optional filtering by username and date range.
         """
-        query = """
+        base_query = """
             SELECT 
                 i.image_id, i.upload_date, i.file_path, i.status AS image_status,
                 i.scan_latitude, i.scan_longitude, 
@@ -120,6 +121,26 @@ class ImageModel:
             JOIN users u ON i.user_id = u.user_id
             LEFT JOIN trees t ON i.tree_id = t.tree_id
             LEFT JOIN farms f ON t.farm_id = f.farm_id
-            ORDER BY i.upload_date DESC
         """
-        return self.db.execute_query(query)
+        
+        where_clauses = []
+        params = []
+        
+        if username:
+            where_clauses.append("u.username LIKE %s")
+            params.append(f"%{username}%")
+            
+        if start_date:
+            where_clauses.append("i.upload_date >= %s")
+            params.append(start_date)
+            
+        if end_date:
+            where_clauses.append("i.upload_date <= %s")
+            params.append(end_date)
+            
+        if where_clauses:
+            base_query += " WHERE " + " AND ".join(where_clauses)
+            
+        base_query += " ORDER BY i.upload_date DESC"
+        
+        return self.db.execute_query(base_query, tuple(params))

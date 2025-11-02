@@ -1,4 +1,5 @@
 # backend/models/statistics_model.py
+
 from backend.services.database_service import DatabaseService
 from typing import Optional, Dict
 from flask import current_app
@@ -127,18 +128,15 @@ class StatisticsModel:
 
     def get_regional_disease_data(self, target_latitude: float, target_longitude: float, max_distance_km: float = 5.0) -> Dict:
         """
-        Retrieves aggregated, anonymous disease distribution data within a radius 
-        of the target location, excluding the current user's data.
+        Retrieves aggregated, anonymous disease distribution data based on UNIQUE 
+        AFFECTED TREES/POINTS within a radius of the target location.
         """
-        # 1. Fetch all recent diseased scans across the entire system with coordinates.
-        # We look for all scans that have any coordinate attached (either scan-specific or farm-specific).
-        # We explicitly exclude 'Healthy' results from this dataset.
         query = """
             SELECT 
-                p.predicted_class, i.upload_date, 
+                p.predicted_class, 
+                i.tree_id, 
                 COALESCE(f.latitude, i.scan_latitude) AS latitude, 
-                COALESCE(f.longitude, i.scan_longitude) AS longitude, 
-                f.user_id as farm_user_id
+                COALESCE(f.longitude, i.scan_longitude) AS longitude
             FROM images i
             JOIN predictions p ON i.image_id = p.image_id
             LEFT JOIN trees t ON i.tree_id = t.tree_id
@@ -148,26 +146,39 @@ class StatisticsModel:
         """
         all_diseased_scans = self.db.execute_query(query) or []
 
-        disease_counts = {}
+        # Key: Disease Name, Value: Set of unique tree_ids affected
+        unique_affected_units = {}
         
         # 2. Iterate through all scans, calculate distance, and aggregate
         for scan in all_diseased_scans:
             try:
-                # Ensure coordinates are float before math calculation
                 scan_lat = float(scan['latitude'])
                 scan_lon = float(scan['longitude'])
             except (TypeError, ValueError):
                 continue 
 
-            # Calculate distance
             distance = haversine_distance(target_latitude, target_longitude, scan_lat, scan_lon)
             
             if distance <= max_distance_km:
                 disease = scan['predicted_class']
-                disease_counts[disease] = disease_counts.get(disease, 0) + 1
-
-        return disease_counts
-
+                
+                # CRITICAL CHANGE: Only count units linked to a Tree (non-null tree_id)
+                unit_id = scan['tree_id']
+                
+                if unit_id is not None:
+                    if disease not in unique_affected_units:
+                        unique_affected_units[disease] = set()
+                    unique_affected_units[disease].add(unit_id)
+        
+        # Final aggregation: count the size of the set for each disease
+        regional_tree_counts = {
+            disease: len(unit_ids) 
+            for disease, unit_ids in unique_affected_units.items()
+        }
+        
+        return {
+            "regional_tree_counts": regional_tree_counts
+        }
 
     def check_geo_outbreak_risk(self, user_id: int, max_distance_km: float = 5.0) -> Dict:
         """
