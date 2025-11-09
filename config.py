@@ -15,7 +15,7 @@ class Config:
     
     # --- Machine Learning Configuration ---
     # Path to the model file
-    MODEL_PATH = 'ml_model_files/mango_leaf_classifier_final.h5'
+    MODEL_PATH = 'ml_model_files/mango_leaf_classifier_98_plus_final.h5'
     
     # IMPORTANT: The classes MUST be in the exact order the model was trained on
     # Total classes: 8

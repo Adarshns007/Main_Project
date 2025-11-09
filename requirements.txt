@@ -6,3 +6,4 @@ tensorflow==2.20.0
 numpy
 Pillow
 opencv-python
+#Installing collected packages: urllib3, pyasn1, idna, charset-normalizer, certifi, rsa, requests, pyasn1-modules, oauthlib, cachetools, typing-extensions, requests-oauthlib, MarkupSafe, google-auth, wheel, Werkzeug, tensorboard-data-server, six, protobuf, numpy, markdown, grpcio, google-auth-oauthlib, colorama, absl-py, wrapt, termcolor, tensorflow-io-gcs-filesystem, tensorflow-estimator, tensorboard, packaging, opt-einsum, ml-dtypes, libclang, keras, Jinja2, itsdangerous, h5py, google-pasta, gast, flatbuffers, click, blinker, astunparse, tensorflow-intel, PyJWT, Flask, tensorflow, Pillow, opencv-python, mysql-connector-python, gunicorn, Flask-JWT-Extended

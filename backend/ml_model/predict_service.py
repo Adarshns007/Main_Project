@@ -1,10 +1,9 @@
-# adarshns007/my-project/my-project-b969c78bfb99d884a2432d5eaa1211441070eb9e/backend/ml_model/predict_service.py
 import numpy as np
 from PIL import Image
 from io import BytesIO
 from flask import current_app
 from .model_loader import ModelLoader
-import cv2 # FIX: Import for blur detection
+import cv2 
 
 class PredictService:
     """
@@ -19,7 +18,7 @@ class PredictService:
         self.color_mode = current_app.config['COLOR_MODE']
         self.model = ModelLoader.get_model()
         # FIX: Define a blur threshold 
-        self.BLUR_THRESHOLD = 100.0 # Standard threshold value
+        self.BLUR_THRESHOLD = 30.0 # Standard threshold value
 
     def _preprocess_image(self, image_file_storage):
         """

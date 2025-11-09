@@ -61,7 +61,8 @@ def create_app(config_class=Config):
         model_loaded = True
     except RuntimeError as e:
         app.logger.error(f"CRITICAL: ML Model failed to load: {e}. Scan functionality will be disabled.")
-        # We allow the app to continue, but model_loaded is False
+        # This block no longer raises the error, allowing the app to start cleanly.
+        model_loaded = False
 
     # --- 3. Initialize Services requiring context/config ---
     with app.app_context():
@@ -160,8 +161,6 @@ def create_app(config_class=Config):
     def regional_report_page():
         return render_template('user/regional_report.html')
         
-    # --- Route for Serving Uploaded Images ---
-    
     @app.route('/uploads/<path:filename>')
     def serve_uploaded_file(filename):
         """Serves images uploaded by users from the UPLOAD_FOLDER."""

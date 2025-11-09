@@ -16,11 +16,9 @@ class ModelLoader:
         """
         if cls._model is None:
             try:
-                # Disable eager execution for better performance on large models
-                # tf.config.experimental_run_functions_eagerly(False)
-                
                 # Load the H5 model
                 cls._model = load_model(model_path)
+                # Recompile with the default optimizer/loss for prediction mode (optional but good practice)
                 cls._model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
                 
             except Exception as e:
