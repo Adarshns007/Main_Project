@@ -8,7 +8,7 @@ venv/
 env/
 
 # Data and ML
-ml_model_files/*.h5
+
 ml_model_files/*.json
 backend/uploads/images/ # User uploaded images
 backend/uploads/
