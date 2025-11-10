@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LeafGuard - About</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="icon" href="{{ url_for('static', filename='images/icons/leafguard_logo.jpg') }}" type="image/png">
+    <style>
+        .about-container {
+            max-width: 900px;
+            margin: 40px auto;
+            padding: 30px;
+            background-color: var(--card-background);
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+        }
+        .about-container h2 {
+            color: var(--primary-color);
+            margin-bottom: 25px;
+            border-bottom: 2px solid var(--secondary-color);
+            padding-bottom: 10px;
+        }
+        .about-container h3 {
+            color: var(--text-color);
+            margin-top: 25px;
+            margin-bottom: 15px;
+        }
+        .feature-list-about {
+            list-style: none;
+            padding-left: 0;
+        }
+        .feature-list-about li {
+            background-color: #f7f7f7;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-left: 5px solid var(--primary-color);
+            border-radius: var(--border-radius);
+            font-size: 1.05em;
+        }
+        .feature-list-about li strong {
+            color: var(--primary-color);
+        }
+    </style>
+</head>
+<body>
+    <header class="main-header">
+        <div class="logo">
+            <img src="{{ url_for('static', filename='images/icons/leafguard_logo.jpg') }}" alt="LeafGuard Logo">
+            <h1>LeafGuard</h1>
+        </div>
+        <nav class="nav-links">
+            <a href="/">Home</a>
+            <a href="/about" class="active">About</a>
+            <a href="/login">Login</a>
+            <a href="/signup" class="btn primary">Sign Up</a>
+        </nav>
+    </header>
+
+    <main class="content-wrapper">
+        <div class="about-container">
+            <h2>About LeafGuard: AI-Powered Crop Protection</h2>
+
+            <p>
+                LeafGuard is an innovative, AI-powered platform designed to assist mango farmers by providing instant and accurate diagnosis of common mango leaf diseases. Our mission is to safeguard your harvest by delivering rapid, data-driven insights directly to your hand.
+            </p>
+
+            <h3>The Technology Behind the Diagnosis</h3>
+            <p>
+                The core of LeafGuard is a state-of-the-art **Convolutional Neural Network (CNN)** model, trained specifically to recognize visual patterns of diseases. The application is built on a robust Flask (Python) backend, uses a MySQL database for persistent storage, and features a clean HTML/CSS/Vanilla JavaScript frontend.
+            </p>
+
+            <h3>Key Features for Modern Farming</h3>
+            <ul class="feature-list-about">
+                <li>
+                    <strong>Instant Diagnosis & Treatment Plans:</strong> Upload a leaf image from your phone or device and receive a disease classification, confidence score, and specific organic and chemical treatment recommendations within seconds.
+                </li>
+                <li>
+                    <strong>Geo-Fencing Outbreak Alerts:</strong> Our system continuously monitors scans within a 5km radius of your geo-tagged farms and alerts you immediately if a significant regional disease spike (outbreak risk) is detected, allowing for proactive intervention.
+                </li>
+                <li>
+                    <strong>Comprehensive Farm & Tree Management:</strong> Organize all your scans, history, and statistics by specific farms and individual trees to track long-term health and measure effectiveness of treatments.
+                </li>
+                <li>
+                    <strong>Anonymous Regional Reports:</strong> Generate on-demand reports showing aggregated, anonymous disease distribution in your 5km area to understand local threats and plan preventative measures.
+                </li>
+            </ul>
+        </div>
+    </main>
+
+    <footer class="main-footer">
+        <p>&copy; 2025 LeafGuard Project. All rights reserved.</p>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/api.js') }}"></script>
+</body>
+</html>

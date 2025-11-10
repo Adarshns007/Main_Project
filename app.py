@@ -85,6 +85,10 @@ def create_app(config_class=Config):
     @app.route('/login')
     def login_page():
         return render_template('auth/login.html')
+    
+    @app.route('/about')
+    def about_page():
+        return render_template('about.html')
 
     @app.route('/signup')
     def signup_page():
